@@ -1,8 +1,19 @@
 -- =============================================
 -- Stored Procedures
 -- =============================================
--- 切換至 vote_system 資料庫
 USE vote_system;
+
+-- =============================================
+-- 0. 依使用者名稱查詢管理員
+-- =============================================
+DELIMITER //
+CREATE PROCEDURE IF NOT EXISTS sp_get_user_by_username(
+  IN p_username VARCHAR(50)
+)
+BEGIN
+  SELECT id, username, password_hash, created_at FROM users WHERE username = p_username;
+END //
+DELIMITER ;
 
 -- =============================================
 -- 1. 取得所有投票項目（含票數）
@@ -83,11 +94,12 @@ DELIMITER ;
 DELIMITER //
 CREATE PROCEDURE IF NOT EXISTS sp_cast_votes(
   IN p_voter    VARCHAR(100),
-  IN p_item_ids TEXT   -- 逗號分隔的項目編號，例: "1,2,3"
+  IN p_item_ids TEXT
 )
 BEGIN
   DECLARE v_done INT DEFAULT 0;
   DECLARE v_item_id INT;
+
   DECLARE v_cursor CURSOR FOR
     SELECT CAST(SUBSTRING_INDEX(SUBSTRING_INDEX(p_item_ids, ',', n), ',', -1) AS UNSIGNED) AS item_id
     FROM (SELECT @rownum := @rownum + 1 AS n
@@ -95,6 +107,7 @@ BEGIN
           CROSS JOIN (SELECT @rownum := 0) r
           LIMIT 100) nums
     WHERE n <= 1 + LENGTH(p_item_ids) - LENGTH(REPLACE(p_item_ids, ',', ''));
+
   DECLARE CONTINUE HANDLER FOR NOT FOUND SET v_done = 1;
 
   DECLARE EXIT HANDLER FOR SQLEXCEPTION
@@ -107,7 +120,6 @@ BEGIN
 
   SET @rownum := 0;
 
-  -- 檢查所有項目是否存在
   OPEN v_cursor;
   read_loop: LOOP
     FETCH v_cursor INTO v_item_id;
@@ -125,7 +137,6 @@ BEGIN
   SET @rownum := 0;
   SET v_done := 0;
 
-  -- 插入投票記錄
   OPEN v_cursor;
   insert_loop: LOOP
     FETCH v_cursor INTO v_item_id;

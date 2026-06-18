@@ -1,16 +1,37 @@
 import { createRouter, createWebHistory } from 'vue-router'
-import AdminView from '../views/AdminView.vue'
-import VoteView from '../views/VoteView.vue'
+import { isAuthenticated } from '../utils/auth.js'
 
 const routes = [
   { path: '/', redirect: '/vote' },
-  { path: '/admin', name: 'Admin', component: AdminView },
-  { path: '/vote', name: 'Vote', component: VoteView },
+  {
+    path: '/vote',
+    name: 'Vote',
+    component: () => import('../views/VoteView.vue'),
+  },
+  {
+    path: '/admin',
+    name: 'Admin',
+    component: () => import('../views/AdminView.vue'),
+    meta: { requiresAuth: true },
+  },
+  {
+    path: '/login',
+    name: 'Login',
+    component: () => import('../views/LoginView.vue'),
+  },
 ]
 
 const router = createRouter({
   history: createWebHistory(),
   routes,
+})
+
+router.beforeEach((to, from, next) => {
+  if (to.meta.requiresAuth && !isAuthenticated()) {
+    next({ path: '/login', query: { redirect: to.fullPath } })
+  } else {
+    next()
+  }
 })
 
 export default router

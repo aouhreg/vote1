@@ -1,140 +1,127 @@
 <template>
-  <div class="admin-page">
-    <div class="card">
-      <h2>投票項目管理</h2>
+  <div>
+    <el-card shadow="always">
+      <template #header>
+        <div class="card-header">
+          <span><el-icon><Setting /></el-icon> 投票項目管理</span>
+          <el-button type="primary" size="small" @click="openAddDialog">
+            <el-icon><Plus /></el-icon> 新增項目
+          </el-button>
+        </div>
+      </template>
 
-      <div class="add-form">
-        <input
-          v-model="newItemName"
-          placeholder="輸入新投票項目名稱"
-          maxlength="100"
-          @keyup.enter="addItem"
-        />
-        <button class="btn btn-primary" @click="addItem" :disabled="!newItemName.trim()">
-          新增
-        </button>
-      </div>
+      <el-table :data="items" stripe style="width:100%" v-loading="loading">
+        <el-table-column prop="id" label="編號" width="80" />
+        <el-table-column prop="name" label="名稱" min-width="200" />
+        <el-table-column prop="voteCount" label="目前票數" width="120" />
+        <el-table-column label="操作" width="200">
+          <template #default="{ row }">
+            <el-button size="small" type="primary" @click="openEditDialog(row)">編輯</el-button>
+            <el-button size="small" type="danger" @click="handleDelete(row.id)">刪除</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-card>
 
-      <table class="item-table">
-        <thead>
-          <tr>
-            <th>編號</th>
-            <th>名稱</th>
-            <th>目前票數</th>
-            <th>操作</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="item in items" :key="item.id">
-            <td>{{ item.id }}</td>
-            <td>
-              <template v-if="editingId === item.id">
-                <input
-                  v-model="editName"
-                  maxlength="100"
-                  class="edit-input"
-                  @keyup.enter="saveEdit(item.id)"
-                />
-              </template>
-              <template v-else>
-                {{ item.name }}
-              </template>
-            </td>
-            <td>{{ item.voteCount }}</td>
-            <td class="action-cell">
-              <template v-if="editingId === item.id">
-                <button class="btn btn-sm btn-primary" @click="saveEdit(item.id)">儲存</button>
-                <button class="btn btn-sm btn-secondary" @click="cancelEdit">取消</button>
-              </template>
-              <template v-else>
-                <button class="btn btn-sm btn-secondary" @click="startEdit(item)">編輯</button>
-                <button class="btn btn-sm btn-danger" @click="deleteItem(item.id)">刪除</button>
-              </template>
-            </td>
-          </tr>
-          <tr v-if="items.length === 0">
-            <td colspan="4" class="empty-row">目前無投票項目</td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <div v-if="message" class="toast" :class="messageType">
-      {{ message }}
-    </div>
+    <el-dialog v-model="dialogVisible" :title="isEdit ? '編輯投票項目' : '新增投票項目'" width="400px">
+      <el-form :model="form" :rules="rules" ref="formRef" label-width="80px">
+        <el-form-item label="名稱" prop="name">
+          <el-input v-model="form.name" maxlength="100" placeholder="請輸入投票項目名稱" />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="dialogVisible = false">取消</el-button>
+        <el-button type="primary" :loading="saving" @click="handleSave">
+          {{ saving ? '儲存中...' : '儲存' }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
 import { ref, onMounted } from 'vue'
+import { ElMessage, ElMessageBox } from 'element-plus'
 import { voteApi } from '../api/index.js'
 
 const items = ref([])
-const newItemName = ref('')
-const editingId = ref(null)
-const editName = ref('')
-const message = ref('')
-const messageType = ref('success')
+const loading = ref(false)
+const dialogVisible = ref(false)
+const isEdit = ref(false)
+const saving = ref(false)
+const editId = ref(null)
 
-function showMessage(msg, type = 'success') {
-  message.value = msg
-  messageType.value = type
-  setTimeout(() => { message.value = '' }, 3000)
+const form = ref({ name: '' })
+const formRef = ref(null)
+
+const rules = {
+  name: [
+    { required: true, message: '請輸入名稱', trigger: 'blur' },
+    { max: 100, message: '名稱長度不能超過100', trigger: 'blur' },
+  ],
 }
 
 async function loadItems() {
+  loading.value = true
   try {
     items.value = await voteApi.getItems()
   } catch (e) {
-    showMessage('載入失敗：' + e.message, 'error')
+    ElMessage.error('載入失敗：' + e.message)
+  } finally {
+    loading.value = false
   }
 }
 
-async function addItem() {
-  const name = newItemName.value.trim()
-  if (!name) return
+function openAddDialog() {
+  isEdit.value = false
+  editId.value = null
+  form.value = { name: '' }
+  dialogVisible.value = true
+}
+
+function openEditDialog(row) {
+  isEdit.value = true
+  editId.value = row.id
+  form.value = { name: row.name }
+  dialogVisible.value = true
+}
+
+async function handleSave() {
+  const valid = await formRef.value.validate().catch(() => false)
+  if (!valid) return
+
+  saving.value = true
   try {
-    await voteApi.createItem(name)
-    newItemName.value = ''
-    showMessage('新增成功')
+    if (isEdit.value) {
+      await voteApi.updateItem(editId.value, form.value.name)
+      ElMessage.success('更新成功')
+    } else {
+      await voteApi.createItem(form.value.name)
+      ElMessage.success('新增成功')
+    }
+    dialogVisible.value = false
     await loadItems()
   } catch (e) {
-    showMessage('新增失敗：' + e.message, 'error')
+    ElMessage.error(e.message)
+  } finally {
+    saving.value = false
   }
 }
 
-function startEdit(item) {
-  editingId.value = item.id
-  editName.value = item.name
-}
-
-function cancelEdit() {
-  editingId.value = null
-  editName.value = ''
-}
-
-async function saveEdit(id) {
-  const name = editName.value.trim()
-  if (!name) return
+async function handleDelete(id) {
   try {
-    await voteApi.updateItem(id, name)
-    editingId.value = null
-    editName.value = ''
-    showMessage('更新成功')
-    await loadItems()
-  } catch (e) {
-    showMessage('更新失敗：' + e.message, 'error')
-  }
-}
-
-async function deleteItem(id) {
-  if (!confirm('確定要刪除此投票項目？')) return
-  try {
+    await ElMessageBox.confirm('確定要刪除此投票項目？相關投票紀錄也將一併刪除。', '確認刪除', {
+      confirmButtonText: '確定刪除',
+      cancelButtonText: '取消',
+      type: 'warning',
+    })
     await voteApi.deleteItem(id)
-    showMessage('刪除成功')
+    ElMessage.success('刪除成功')
     await loadItems()
   } catch (e) {
-    showMessage('刪除失敗：' + e.message, 'error')
+    if (e !== 'cancel') {
+      ElMessage.error(e.message || '刪除失敗')
+    }
   }
 }
 
@@ -142,147 +129,13 @@ onMounted(loadItems)
 </script>
 
 <style scoped>
-.admin-page {
-  position: relative;
-}
-
-.card {
-  background: #fff;
-  border-radius: 8px;
-  padding: 24px;
-  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
-}
-
-.card h2 {
-  margin-bottom: 16px;
-  font-size: 18px;
-  color: #1a73e8;
-}
-
-.add-form {
+.card-header {
   display: flex;
-  gap: 8px;
-  margin-bottom: 16px;
+  justify-content: space-between;
+  align-items: center;
 }
-
-.add-form input {
-  flex: 1;
-  padding: 8px 12px;
-  border: 1px solid #d9d9d9;
-  border-radius: 6px;
-  font-size: 14px;
-  outline: none;
-  transition: border-color 0.2s;
-}
-
-.add-form input:focus {
-  border-color: #1a73e8;
-}
-
-.item-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.item-table th,
-.item-table td {
-  padding: 10px 12px;
-  text-align: left;
-  border-bottom: 1px solid #f0f0f0;
-  font-size: 14px;
-}
-
-.item-table th {
-  background: #fafafa;
+.card-header span {
+  font-size: 16px;
   font-weight: 600;
-  color: #555;
-}
-
-.item-table tbody tr:hover {
-  background: #f5f7fa;
-}
-
-.edit-input {
-  padding: 4px 8px;
-  border: 1px solid #1a73e8;
-  border-radius: 4px;
-  font-size: 14px;
-  width: 100%;
-  max-width: 240px;
-  outline: none;
-}
-
-.action-cell {
-  white-space: nowrap;
-  display: flex;
-  gap: 6px;
-}
-
-.empty-row {
-  text-align: center;
-  color: #999;
-  padding: 24px;
-}
-
-.btn {
-  cursor: pointer;
-  border: none;
-  border-radius: 6px;
-  font-size: 13px;
-  padding: 6px 14px;
-  transition: opacity 0.2s;
-}
-
-.btn:disabled {
-  opacity: 0.5;
-  cursor: not-allowed;
-}
-
-.btn:hover:not(:disabled) {
-  opacity: 0.85;
-}
-
-.btn-primary {
-  background: #1a73e8;
-  color: #fff;
-}
-
-.btn-secondary {
-  background: #e8e8e8;
-  color: #333;
-}
-
-.btn-danger {
-  background: #e8453c;
-  color: #fff;
-}
-.btn-sm {
-  padding: 4px 10px;
-  font-size: 12px;
-}
-
-.toast {
-  position: fixed;
-  top: 80px;
-  right: 24px;
-  padding: 10px 20px;
-  border-radius: 6px;
-  font-size: 14px;
-  color: #fff;
-  z-index: 1000;
-  animation: fadeIn 0.3s;
-}
-
-.toast.success {
-  background: #52c41a;
-}
-
-.toast.error {
-  background: #e8453c;
-}
-
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(-10px); }
-  to   { opacity: 1; transform: translateY(0); }
 }
 </style>

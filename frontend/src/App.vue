@@ -1,82 +1,110 @@
 <template>
-  <div id="app">
-    <nav class="nav-bar">
-      <div class="nav-inner">
-        <h1 class="nav-title">線上投票系統</h1>
-        <div class="nav-links">
-          <router-link to="/vote">使用者投票</router-link>
-          <router-link to="/admin">後台管理</router-link>
+  <el-container>
+    <el-header class="app-header">
+      <div class="header-inner">
+        <router-link to="/vote" class="app-title">線上投票系統</router-link>
+        <el-menu mode="horizontal" :ellipsis="false" router class="nav-menu">
+          <el-menu-item index="/vote">
+            <el-icon><Histogram /></el-icon>
+            使用者投票
+          </el-menu-item>
+          <el-menu-item index="/admin">
+            <el-icon><Setting /></el-icon>
+            後台管理
+          </el-menu-item>
+        </el-menu>
+        <div class="header-right">
+          <template v-if="isAdmin">
+            <el-tag type="success" size="small">{{ username }}</el-tag>
+            <el-button size="small" type="danger" plain @click="handleLogout">登出</el-button>
+          </template>
+          <template v-else>
+            <el-button size="small" type="primary" @click="$router.push('/login')">登入</el-button>
+          </template>
         </div>
       </div>
-    </nav>
-    <main class="main-content">
+    </el-header>
+    <el-main class="app-main">
       <router-view />
-    </main>
-  </div>
+    </el-main>
+  </el-container>
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRouter } from 'vue-router'
+import { getToken, getUser, logout as clearAuth } from './utils/auth.js'
+import { ElMessage } from 'element-plus'
+
+const router = useRouter()
+
+const isAdmin = computed(() => !!getToken())
+const username = computed(() => getUser() || '')
+
+function handleLogout() {
+  clearAuth()
+  ElMessage.success('已登出')
+  router.push('/vote')
+}
 </script>
 
 <style>
-*,
-*::before,
-*::after {
-  box-sizing: border-box;
-  margin: 0;
-  padding: 0;
-}
-
 body {
+  margin: 0;
   font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: #f0f2f5;
-  color: #333;
-  line-height: 1.6;
+  background: #f5f7fa;
 }
 
-.nav-bar {
-  background: #1a73e8;
-  color: #fff;
+.app-header {
+  background: #fff;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
   padding: 0 24px;
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  position: sticky;
+  top: 0;
+  z-index: 100;
 }
 
-.nav-inner {
-  max-width: 960px;
+.header-inner {
+  width: 100%;
+  max-width: 1100px;
   margin: 0 auto;
   display: flex;
   align-items: center;
-  height: 56px;
-  gap: 32px;
+  gap: 24px;
 }
 
-.nav-title {
+.app-title {
   font-size: 20px;
-  font-weight: 600;
-}
-
-.nav-links {
-  display: flex;
-  gap: 16px;
-}
-
-.nav-links a {
-  color: #fff;
+  font-weight: 700;
+  color: #409eff;
   text-decoration: none;
-  padding: 6px 16px;
-  border-radius: 6px;
-  font-size: 14px;
-  transition: background 0.2s;
+  white-space: nowrap;
 }
 
-.nav-links a:hover,
-.nav-links a.router-link-exact-active {
-  background: rgba(255, 255, 255, 0.2);
+.nav-menu {
+  flex: 1;
+  border-bottom: none !important;
 }
 
-.main-content {
-  max-width: 960px;
-  margin: 32px auto;
-  padding: 0 24px;
+.header-right {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  white-space: nowrap;
+}
+
+.app-main {
+  max-width: 1100px;
+  margin: 24px auto;
+  width: 100%;
+  padding: 0 16px;
+}
+
+.el-menu--horizontal > .el-menu-item {
+  height: 60px;
+  line-height: 60px;
 }
 </style>
