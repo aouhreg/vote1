@@ -1,31 +1,28 @@
 <template>
   <div>
+    <el-alert
+      v-if="!loggedIn"
+      title="投票需要登入"
+      type="warning"
+      :closable="false"
+      show-icon
+      style="margin-bottom:16px"
+    >
+      <template #default>
+        請先 <router-link to="/login" style="font-weight:600">登入 / 註冊</router-link> 後即可投票
+      </template>
+    </el-alert>
+
     <el-card shadow="always">
       <template #header>
         <div class="card-header">
-          <span><el-icon><Histogram /></el-icon> 投票區</span>
+          <span><el-icon><Histogram /></el-icon> 目前投票統計</span>
+          <el-tag v-if="loggedIn" type="success">已登入：{{ username }}</el-tag>
         </div>
       </template>
 
-      <el-form :model="form" label-width="80px">
-        <el-form-item label="投票人">
-          <el-input
-            v-model="form.voter"
-            placeholder="請輸入您的名稱"
-            maxlength="100"
-            style="max-width:300px"
-          />
-        </el-form-item>
-      </el-form>
-
-      <el-table
-        :data="items"
-        stripe
-        style="width:100%"
-        v-loading="loading"
-        @row-click="handleRowClick"
-      >
-        <el-table-column width="60">
+      <el-table :data="items" stripe style="width:100%" v-loading="loading">
+        <el-table-column label="選擇" width="60" v-if="loggedIn">
           <template #default="{ row }">
             <el-checkbox
               :checked="selectedIds.has(row.id)"
@@ -43,11 +40,11 @@
         </el-table-column>
       </el-table>
 
-      <div class="vote-action">
+      <div v-if="loggedIn" class="vote-action">
         <el-button
           type="primary"
           size="large"
-          :disabled="!form.voter.trim() || selectedIds.size === 0"
+          :disabled="selectedIds.size === 0"
           :loading="submitting"
           @click="submitVote"
         >
@@ -59,18 +56,18 @@
 </template>
 
 <script setup>
-import { ref, reactive, onMounted } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { voteApi } from '../api/index.js'
+import { getToken, getUser } from '../utils/auth.js'
 
 const items = ref([])
 const loading = ref(false)
 const submitting = ref(false)
 const selectedIds = ref(new Set())
 
-const form = reactive({
-  voter: '',
-})
+const loggedIn = computed(() => !!getToken())
+const username = computed(() => getUser() || '')
 
 async function loadItems() {
   loading.value = true
@@ -83,36 +80,22 @@ async function loadItems() {
   }
 }
 
-function handleRowClick(row) {
-  toggleItem(row.id)
-}
-
 function toggleItem(id) {
   const set = new Set(selectedIds.value)
-  if (set.has(id)) {
-    set.delete(id)
-  } else {
-    set.add(id)
-  }
+  set.has(id) ? set.delete(id) : set.add(id)
   selectedIds.value = set
 }
 
 async function submitVote() {
-  if (!form.voter.trim()) {
-    ElMessage.warning('請輸入投票人名稱')
-    return
-  }
   if (selectedIds.value.size === 0) {
     ElMessage.warning('請至少選擇一個投票項目')
     return
   }
-
   submitting.value = true
   try {
-    await voteApi.castVotes(form.voter.trim(), Array.from(selectedIds.value))
+    await voteApi.castVotes(username.value, Array.from(selectedIds.value))
     ElMessage.success('投票成功！')
     selectedIds.value = new Set()
-    form.voter = ''
     await loadItems()
   } catch (e) {
     ElMessage.error('投票失敗：' + e.message)
@@ -125,13 +108,7 @@ onMounted(loadItems)
 </script>
 
 <style scoped>
-.card-header span {
-  font-size: 16px;
-  font-weight: 600;
-}
-
-.vote-action {
-  margin-top: 24px;
-  text-align: center;
-}
+.card-header { display:flex; justify-content:space-between; align-items:center; }
+.card-header span { font-size:16px; font-weight:600; }
+.vote-action { margin-top:24px; text-align:center; }
 </style>

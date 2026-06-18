@@ -68,4 +68,11 @@ export const authApi = {
   login(username, password) {
     return http.post('/auth/login', { username, password })
   },
+  register(username, password) {
+    return http.post('/auth/register', { username, password })
+  },
+}
+
+export function setAuthToken(token) {
+  http.defaults.headers.common['Authorization'] = `Bearer ${token}`
 }

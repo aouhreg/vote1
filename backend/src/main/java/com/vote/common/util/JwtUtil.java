@@ -21,10 +21,10 @@ public class JwtUtil {
     this.expirationMs = expirationMs;
   }
 
-  public String generateToken(String username) {
+  public String generateToken(String username, String role) {
     return Jwts.builder()
         .subject(username)
-        .claim("role", "ADMIN")
+        .claim("role", role)
         .issuedAt(new Date())
         .expiration(new Date(System.currentTimeMillis() + expirationMs))
         .signWith(key)
@@ -33,6 +33,10 @@ public class JwtUtil {
 
   public String extractUsername(String token) {
     return getClaims(token).getSubject();
+  }
+
+  public String extractRole(String token) {
+    return getClaims(token).get("role", String.class);
   }
 
   public boolean isTokenValid(String token) {

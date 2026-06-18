@@ -27,4 +27,11 @@ public class AuthController {
     LoginResponseDTO result = authService.login(dto.getUsername(), dto.getPassword());
     return ResponseEntity.ok(ApiResponse.ok("登入成功", result));
   }
+
+  @PostMapping("/register")
+  public ResponseEntity<ApiResponse<Void>> register(
+      @Valid @RequestBody LoginRequestDTO dto) {
+    authService.register(dto.getUsername(), dto.getPassword());
+    return ResponseEntity.ok(ApiResponse.ok("註冊成功，請重新登入", null));
+  }
 }

@@ -1,24 +1,19 @@
--- =============================================
--- DDL: 建立資料庫與資料表
--- =============================================
-
 CREATE DATABASE IF NOT EXISTS vote_system
   DEFAULT CHARACTER SET utf8mb4
   DEFAULT COLLATE utf8mb4_unicode_ci;
 
 USE vote_system;
 
--- 管理員帳號表
 CREATE TABLE IF NOT EXISTS users (
   id            INT           NOT NULL AUTO_INCREMENT,
   username      VARCHAR(50)   NOT NULL,
   password_hash VARCHAR(255)  NOT NULL,
+  role          VARCHAR(20)   NOT NULL DEFAULT 'USER',
   created_at    DATETIME      NOT NULL DEFAULT CURRENT_TIMESTAMP,
   PRIMARY KEY (id),
   UNIQUE KEY uk_username (username)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 投票項目表
 CREATE TABLE IF NOT EXISTS vote_items (
   id         INT           NOT NULL AUTO_INCREMENT,
   name       VARCHAR(100)  NOT NULL,
@@ -27,7 +22,6 @@ CREATE TABLE IF NOT EXISTS vote_items (
   PRIMARY KEY (id)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- 投票記錄表
 CREATE TABLE IF NOT EXISTS vote_records (
   id         INT           NOT NULL AUTO_INCREMENT,
   voter      VARCHAR(100)  NOT NULL,

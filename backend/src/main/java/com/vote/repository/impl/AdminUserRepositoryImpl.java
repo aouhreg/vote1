@@ -23,6 +23,7 @@ public class AdminUserRepositoryImpl implements AdminUserRepository {
     user.setId(rs.getInt("id"));
     user.setUsername(rs.getString("username"));
     user.setPasswordHash(rs.getString("password_hash"));
+    user.setRole(rs.getString("role"));
     try { if (rs.getTimestamp("created_at") != null) user.setCreatedAt(rs.getTimestamp("created_at").toLocalDateTime()); } catch (Exception ignored) {}
     return user;
   }
@@ -36,13 +37,27 @@ public class AdminUserRepositoryImpl implements AdminUserRepository {
         try (ResultSet rs = cs.getResultSet()) {
           java.util.List<AdminUser> users = new java.util.ArrayList<>();
           int rowNum = 0;
-          while (rs.next()) {
-            users.add(mapRow(rs, rowNum++));
-          }
+          while (rs.next()) { users.add(mapRow(rs, rowNum++)); }
           return users;
         }
       }
     });
     return list.isEmpty() ? null : list.get(0);
+  }
+
+  @Override
+  public int insert(String username, String passwordHash, String role) {
+    return jdbcTemplate.execute((java.sql.Connection connection) -> {
+      try (var cs = connection.prepareCall("{CALL sp_insert_user(?, ?, ?)}")) {
+        cs.setString(1, username);
+        cs.setString(2, passwordHash);
+        cs.setString(3, role);
+        cs.execute();
+        try (ResultSet rs = cs.getResultSet()) {
+          if (rs.next()) return rs.getInt("id");
+        }
+      }
+      return 0;
+    });
   }
 }

@@ -12,7 +12,6 @@ import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter;
-import org.springframework.security.web.util.matcher.AntPathRequestMatcher;
 
 @Configuration
 @EnableWebSecurity
@@ -37,7 +36,10 @@ public class SecurityConfig {
       .authorizeHttpRequests(auth -> auth
         .requestMatchers("/api/auth/**").permitAll()
         .requestMatchers(HttpMethod.GET, "/api/items/**").permitAll()
-        .requestMatchers(HttpMethod.POST, "/api/votes/**").permitAll()
+        .requestMatchers(HttpMethod.POST, "/api/votes/**").authenticated()
+        .requestMatchers(HttpMethod.POST, "/api/items/**").hasRole("ADMIN")
+        .requestMatchers(HttpMethod.PUT, "/api/items/**").hasRole("ADMIN")
+        .requestMatchers(HttpMethod.DELETE, "/api/items/**").hasRole("ADMIN")
         .anyRequest().authenticated()
       )
       .addFilterBefore(jwtFilter, UsernamePasswordAuthenticationFilter.class)
@@ -46,6 +48,11 @@ public class SecurityConfig {
           response.setContentType("application/json;charset=UTF-8");
           response.setStatus(HttpStatus.UNAUTHORIZED.value());
           response.getWriter().write("{\"success\":false,\"message\":\"未授權，請先登入\"}");
+        })
+        .accessDeniedHandler((request, response, accessDeniedException) -> {
+          response.setContentType("application/json;charset=UTF-8");
+          response.setStatus(HttpStatus.FORBIDDEN.value());
+          response.getWriter().write("{\"success\":false,\"message\":\"權限不足，僅管理員可執行此操作\"}");
         })
       );
 
